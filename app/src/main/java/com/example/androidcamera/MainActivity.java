@@ -28,19 +28,19 @@ public class MainActivity extends AppCompatActivity {
         View view = new View(this);
 
         someActivityResultLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            // There are no request codes
-                            Intent data = result.getData();
-                            Uri uri = data.getData();
-                            ImageView imageView = findViewById(R.id.img);
-                            imageView.setImageURI(uri);
-                        }
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        // There are no request codes
+                        Intent data = result.getData();
+                        Uri uri = data.getData();
+                        ImageView imageView = findViewById(R.id.img);
+                        imageView.setImageURI(uri);
                     }
-                });
+                }
+            });
 
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -51,9 +51,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void openSomeActivityForResult(View view) {
-        // Use the previously registered launcher
         someActivityResultLauncher.launch(new Intent(Intent.ACTION_GET_CONTENT)
-                .setType("image/jpg")
+                .setType("image/png")
                 .putExtra(Intent.EXTRA_LOCAL_ONLY, true));
     }
 }
