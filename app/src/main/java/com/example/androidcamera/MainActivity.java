@@ -24,6 +24,7 @@ import androidx.core.content.FileProvider;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
@@ -39,6 +40,16 @@ public class MainActivity extends AppCompatActivity {
 
         Button buttonGallery = findViewById(R.id.button);
         Button buttonCamera = findViewById(R.id.button2);
+
+        File lastSavedImage = getLastSavedImage();
+        if (lastSavedImage != null) {
+            Uri lastImageUri = FileProvider.getUriForFile(
+                    this,
+                    "com.example.androidcamera.fileprovider",
+                    lastSavedImage
+            );
+            setImage(lastImageUri);
+        }
 
         galleryLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -130,6 +141,17 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+    private File getLastSavedImage() {
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File[] files = storageDir.listFiles();
+        if (files != null && files.length > 0) {
+            // Sort files by last modified timestamp to get the latest one
+            Arrays.sort(files, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+            return files[0];
+        }
+        return null;
     }
 
 }
