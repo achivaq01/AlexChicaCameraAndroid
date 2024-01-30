@@ -3,6 +3,7 @@ package com.example.androidcamera;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.icu.text.SimpleDateFormat;
 import android.net.Uri;
 import android.os.Bundle;
@@ -11,12 +12,14 @@ import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
@@ -24,117 +27,110 @@ import java.io.IOException;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
-    static final int REQUEST_IMAGE_CAPTURE = 1;
     public static int RC_PHOTO_PICKER = 0;
-    private ActivityResultLauncher<Intent> someActivityResultLauncher;
+    private ActivityResultLauncher<Intent> galleryLauncher;
+    private ActivityResultLauncher<Intent> cameraLauncher;
+    private Uri cameraImageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         Button buttonGallery = findViewById(R.id.button);
         Button buttonCamera = findViewById(R.id.button2);
 
-        View view = new View(this);
-
-        someActivityResultLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_OK) {
-                        // There are no request codes
                         Intent data = result.getData();
-                        assert data != null;
-                        Uri uri = data.getData();
-                        ImageView imageView = findViewById(R.id.img);
-                        imageView.setImageURI(uri);
+                        if (data != null) {
+                            Uri uri = data.getData();
+                            if (uri != null) {
+                                setImage(uri);
+                            }
+                        }
                     }
-                });
+                }
+        );
 
-        buttonGallery.setOnClickListener(v -> openSomeActivityForResult(view, 0));
+        cameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        setImage(cameraImageUri);
+                    }
+                }
+        );
 
+        buttonGallery.setOnClickListener(v -> openGallery());
         buttonCamera.setOnClickListener(v -> {
-            openSomeActivityForResult(view, 1);
+            if (ContextCompat.checkSelfPermission(this, "android.permission.CAMERA") != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{"android.permission.CAMERA"}, 100);
+            } else {
+                openCamera();
+            }
         });
     }
 
-    public void openSomeActivityForResult(View view, int type) {
-        if (type == 0) {
-            someActivityResultLauncher.launch(new Intent(Intent.ACTION_GET_CONTENT)
-                    .setType("image/png")
-                    .putExtra(Intent.EXTRA_LOCAL_ONLY, true));
-        } else if (type == 1) {
-            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            // Ensure that there's a camera activity to handle the intent
+    private void openGallery() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+        galleryLauncher.launch(intent);
+    }
 
-            // Create the File where the photo should go
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException ex) {
-                System.out.println("exception!");
-                // Error occurred while creating the File
-            }
-            // Continue only if the File was successfully created
-            if (photoFile != null) {
-                Uri photoURI = FileProvider.getUriForFile(this,
-                        "com.example.android.fileprovider",
-                        photoFile);
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-                someActivityResultLauncher.launch(takePictureIntent);
-                galleryAddPic();
-            }
+    private void openCamera() {
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (cameraIntent.resolveActivity(getPackageManager()) != null) {
+
+        }
+        System.out.println("before the second if");
+        File photoFile = createImageFile();
+        if (photoFile != null) {
+            System.out.println("before cameraImageUri");
+            cameraImageUri = FileProvider.getUriForFile(this,
+                    "com.example.androidcamera.fileprovider",
+                    photoFile);
+            System.out.println("before put extra");
+            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
+            System.out.println("before launching intent");
+            cameraLauncher.launch(cameraIntent);
         }
     }
 
-    String currentPhotoPath;
-    private File createImageFile() throws IOException {
+    private File createImageFile() {
         // Create an image file name
         @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
-        );
-        currentPhotoPath = image.getAbsolutePath();
-        return image;
+        try {
+            return File.createTempFile(imageFileName, ".jpg", storageDir);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
-    @SuppressLint("QueryPermissionsNeeded")
-    private void dispatchTakePictureIntent() {
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        // Ensure that there's a camera activity to handle the intent
 
-            // Create the File where the photo should go
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException ex) {
-                System.out.println("exception!");
-                // Error occurred while creating the File
+    private void setImage(Uri uri) {
+        ImageView imageView = findViewById(R.id.img);
+        imageView.setImageURI(uri);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 100) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, proceed with camera operation
+                openCamera();
+            } else {
+                // Permission denied, handle accordingly
+                Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show();
             }
-            // Continue only if the File was successfully created
-            if (photoFile != null) {
-                Uri photoURI = FileProvider.getUriForFile(this,
-                        "com.example.android.fileprovider",
-                        photoFile);
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-            }
-
+        }
     }
-
-    private void galleryAddPic() {
-        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        Uri contentUri = FileProvider.getUriForFile(this, "com.example.android.fileprovider", new File(currentPhotoPath));
-        mediaScanIntent.setData(contentUri);
-        mediaScanIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-        this.sendBroadcast(mediaScanIntent);
-        System.out.println("image stored!");
-    }
-
-
-
 
 }
+
