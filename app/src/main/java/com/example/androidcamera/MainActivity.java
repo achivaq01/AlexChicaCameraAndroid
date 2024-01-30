@@ -9,7 +9,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -40,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
 
         Button buttonGallery = findViewById(R.id.button);
         Button buttonCamera = findViewById(R.id.button2);
+        Button buttonAppGallery = findViewById(R.id.button3);
 
         File lastSavedImage = getLastSavedImage();
         if (lastSavedImage != null) {
@@ -82,6 +82,10 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 openCamera();
             }
+        });
+        buttonAppGallery.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, GalleryView.class);
+            startActivity(intent);
         });
     }
 
